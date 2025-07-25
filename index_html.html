@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Games Collection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .index-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 4em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ff00;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #00ff00; }
+            to { text-shadow: 0 0 30px #00ff00, 0 0 40px #00ff00; }
+        }
+
+        .subtitle {
+            font-size: 1.5em;
+            color: #00ffff;
+            margin-bottom: 10px;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .game-card {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 255, 0, 0.3);
+            border-color: #00ffff;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 0, 0.1), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+            opacity: 0;
+        }
+
+        .game-card:hover::before {
+            animation: shine 0.5s ease-in-out;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); opacity: 0; }
+        }
+
+        .game-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .game-title {
+            font-size: 2em;
+            margin-bottom: 15px;
+            color: #00ffff;
+        }
+
+        .game-description {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #cccccc;
+        }
+
+        .play-btn {
+            background: linear-gradient(45deg, #00ff00, #00cc00);
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .play-btn:hover {
+            background: linear-gradient(45deg, #00cc00, #009900);
+            transform: scale(1.05);
+        }
+
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2.5em; }
+            .games-grid { grid-template-columns: 1fr; }
+            .game-card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div class="index-page">
+        <div class="header">
+            <h1>🎮 HTML GAMES</h1>
+            <div class="subtitle">Choose Your Adventure</div>
+            <p style="color: #888; margin-top: 10px;">A collection of browser-based games built with HTML5, CSS3, and JavaScript</p>
+        </div>
+        
+        <div class="games-grid">
+            <div class="game-card">
+                <span class="game-icon">🚀</span>
+                <h3 class="game-title">Space Shooter</h3>
+                <p class="game-description">
+                    Defend Earth from alien invasion! Pilot your spaceship through waves of enemies in this classic arcade-style shooter. Features smooth controls, enemy AI, and increasing difficulty.
+                </p>
+                <a href="game.html" class="play-btn">Play Now</a>
+            </div>
+            
+            <div class="game-card" style="opacity: 0.6; cursor: not-allowed;">
+                <span class="game-icon">🐍</span>
+                <h3 class="game-title">Snake Game</h3>
+                <p class="game-description">
+                    Classic snake game with modern graphics. Eat food, grow longer, and avoid hitting yourself or the walls. Simple but addictive gameplay!
+                </p>
+                <button class="play-btn" style="opacity: 0.5;">Coming Soon</button>
+            </div>
+            
+            <div class="game-card" style="opacity: 0.6; cursor: not-allowed;">
+                <span class="game-icon">🏓</span>
+                <h3 class="game-title">Pong</h3>
+                <p class="game-description">
+                    The classic arcade game that started it all! Play against the computer in this retro ping-pong simulation with modern twists.
+                </p>
+                <button class="play-btn" style="opacity: 0.5;">Coming Soon</button>
+            </div>
+            
+            <div class="game-card" style="opacity: 0.6; cursor: not-allowed;">
+                <span class="game-icon">🟫</span>
+                <h3 class="game-title">Tetris</h3>
+                <p class="game-description">
+                    Stack falling blocks to create complete lines in this puzzle classic. Features multiple difficulty levels and smooth gameplay.
+                </p>
+                <button class="play-btn" style="opacity: 0.5;">Coming Soon</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Built with ❤️ using HTML5, CSS3 & JavaScript | All games run directly in your browser</p>
+        </div>
+    </div>
+
+    <script>
+        // Create animated stars background
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            const numStars = 100;
+            
+            for (let i = 0; i < numStars; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = star.style.height = Math.random() * 3 + 1 + 'px';
+                star.style.animationDelay = Math.random() * 2 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+        
+        // Initialize
+        createStars();
+    </script>
+</body>
+</html>
