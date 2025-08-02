@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite Army Defense</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: 
+                radial-gradient(circle at 30% 30%, rgba(255, 193, 7, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(244, 67, 54, 0.05) 0%, transparent 50%),
+                linear-gradient(135deg, #1a2a1a 0%, #2d4a2d 30%, #0d1b0d 100%);
+        }
+        
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: transparent;
+            touch-action: none;
+            cursor: none;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: #00ff41;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.8);
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00ff41;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+        
+        #weaponSelect {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .weapon-btn {
+            padding: 12px 15px;
+            background: linear-gradient(145deg, #2c5530, #1a3d1f);
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.8);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+            min-width: 140px;
+        }
+        
+        .weapon-btn:hover, .weapon-btn.selected {
+            background: linear-gradient(145deg, #00ff41, #00cc33);
+            color: #000;
+            box-shadow: 0 0 25px rgba(0, 255, 65, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .weapon-btn:disabled {
+            background: #333;
+            color: #666;
+            border-color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .control-btn {
+            padding: 15px 25px;
+            background: linear-gradient(145deg, #ff6b35, #d63031);
+            color: white;
+            border: 2px solid #ff6b35;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.4);
+            transition: all 0.3s;
+            min-width: 100px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .control-btn:hover {
+            background: linear-gradient(145deg, #ff7675, #fd79a8);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.6);
+        }
+        
+        .control-btn:active {
+            transform: translateY(-1px);
+        }
+        
+        #gameOver, #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, rgba(0,0,0,0.95), rgba(20,20,20,0.95));
+            color: #00ff41;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 200;
+            border: 3px solid #00ff41;
+            box-shadow: 0 0 50px rgba(0, 255, 65, 0.5);
+            backdrop-filter: blur(10px);
+        }
+        
+        #gameOver {
+            display: none;
+        }
+        
+        #startScreen h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(0, 255, 65, 1);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(0, 255, 65, 0.8); }
+            to { text-shadow: 0 0 30px rgba(0, 255, 65, 1), 0 0 40px rgba(0, 255, 65, 0.8); }
+        }
+        
+        #startScreen p {
+            font-size: 1.3em;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            max-width: 500px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-item {
+            background: rgba(0, 255, 65, 0.1);
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid rgba(0, 255, 65, 0.3);
+        }
+        
+        #crosshair {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            pointer-events: none;
+            z-index: 150;
+            opacity: 0.7;
+        }
+        
+        .crosshair-line {
+            position: absolute;
+            background: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+        }
+        
+        .crosshair-h {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .crosshair-v {
+            height: 100%;
+            width: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        @media (max-width: 768px) {
+            #ui {
+                font-size: 14px;
+                top: 10px;
+                left: 10px;
+                padding: 10px;
+            }
+            
+            #weaponSelect {
+                top: 10px;
+                right: 10px;
+            }
+            
+            .weapon-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                min-width: 120px;
+            }
+            
+            .control-btn {
+                padding: 12px 18px;
+                font-size: 14px;
+                min-width: 80px;
+            }
+            
+            #startScreen h1 {
+                font-size: 2.2em;
+            }
+            
+            #startScreen p {
+                font-size: 1.1em;
+            }
+        }
+        
+        .upgrade-panel {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 15px;
+            display: none;
+            z-index: 100;
+        }
+        
+        .damage-text {
+            position: absolute;
+            color: #ff6b35;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="crosshair">
+            <div class="crosshair-line crosshair-h"></div>
+            <div class="crosshair-line crosshair-v"></div>
+        </div>
+        
+        <div id="ui">
+            <div>🏥 Health: <span id="health">100</span></div>
+            <div>🎯 Score: <span id="score">0</span></div>
+            <div>⚔️ Wave: <span id="wave">1</span></div>
+            <div>💰 Money: $<span id="money">150</span></div>
+            <div>💀 Kills: <span id="kills">0</span></div>
+            <div class="stats">
+                <div class="stat-item">🔥 DPS: <span id="dps">0</span></div>
+                <div class="stat-item">⏱️ Time: <span id="time">0</span>s</div>
+            </div>
+        </div>
+        
+        <div id="weaponSelect">
+            <button class="weapon-btn selected" data-weapon="machinegun">
+                🔫 Machine Gun<br><small>$75 • Fast Fire</small>
+            </button>
+            <button class="weapon-btn" data-weapon="sniper">
+                🎯 Sniper Rifle<br><small>$120 • High Damage</small>
+            </button>
+            <button class="weapon-btn" data-weapon="rocket">
+                🚀 Rocket Launcher<br><small>$200 • Area Damage</small>
+            </button>
+            <button class="weapon-btn" data-weapon="laser">
+                ⚡ Laser Cannon<br><small>$300 • Beam Weapon</small>
+            </button>
+        </div>
+        
+        <div id="controls">
+            <button class="control-btn" id="pauseBtn">⏸️ PAUSE</button>
+            <button class="control-btn" id="soundBtn">🔊 SOUND</button>
+            <button class="control-btn" id="upgradeBtn">⬆️ UPGRADE</button>
+        </div>
+        
+        <div id="gameOver">
+            <h2>💀 MISSION FAILED 💀</h2>
+            <p>Your base has been overrun!</p>
+            <div style="margin: 20px 0;">
+                <div>Final Score: <span id="finalScore">0</span></div>
+                <div>Waves Survived: <span id="finalWave">0</span></div>
+                <div>Enemies Killed: <span id="finalKills">0</span></div>
+                <div>Time Survived: <span id="finalTime">0</span>s</div>
+            </div>
+            <button class="control-btn" onclick="restartGame()">🔄 RESTART MISSION</button>
+        </div>
+        
+        <div id="startScreen">
+            <h1>🪖 ELITE ARMY DEFENSE 🪖</h1>
+            <p>
+                Command the ultimate defense system!<br><br>
+                🎯 Deploy multiple weapon types<br>
+                🚀 Upgrade your arsenal<br>
+                💥 Survive endless enemy waves<br>
+                🏆 Achieve the highest score
+            </p>
+            <button class="control-btn" onclick="startGame()">🚀 START MISSION</button>
+        </div>
+        
+        <div id="upgradePanel" class="upgrade-panel">
+            <h3>Upgrade Turret</h3>
+            <button class="control-btn" onclick="upgradeDamage()">+Damage ($100)</button>
+            <button class="control-btn" onclick="upgradeRange()">+Range ($80)</button>
+            <button class="control-btn" onclick="upgradeSpeed()">+Speed ($60)</button>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced game variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameRunning = false;
+        let gamePaused = false;
+        let soundEnabled = true;
+        let selectedWeapon = 'machinegun';
+        let selectedTurret = null;
+        let gameTime = 0;
+        let totalDamageDealt = 0;
+        let lastDpsUpdate = 0;
+        
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Enhanced game state
+        let gameState = {
+            health: 100,
+            score: 0,
+            wave: 1,
+            money: 150,
+            kills: 0,
+            enemies: [],
+            turrets: [],
+            bullets: [],
+            particles: [],
+            explosions: [],
+            damageTexts: [],
+            enemySpawnTimer: 0,
+            waveTimer: 0,
+            waveEnemies: 5,
+            enemiesThisWave: 0,
+            placingTurret: false,
+            background: []
+        };
+        
+        // Weapon configurations
+        const weaponTypes = {
+            machinegun: {
+                cost: 75,
+                damage: 15,
+                fireRate: 20,
+                range: 100,
+                bulletSpeed: 12,
+                color: '#ffff00',
+                sound: 1200
+            },
+            sniper: {
+                cost: 120,
+                damage: 60,
+                fireRate: 80,
+                range: 180,
+                bulletSpeed: 20,
+                color: '#00ffff',
+                sound: 800
+            },
+            rocket: {
+                cost: 200,
+                damage: 100,
+                fireRate: 100,
+                range: 120,
+                bulletSpeed: 8,
+                color: '#ff4444',
+                sound: 400,
+                explosive: true,
+                explosionRadius: 50
+            },
+            laser: {
+                cost: 300,
+                damage: 25,
+                fireRate: 5,
+                range: 150,
+                bulletSpeed: 30,
+                color: '#ff00ff',
+                sound: 1500,
+                laser: true
+            }
+        };
+        
+        // Enhanced audio system with better error handling
+        let audioContext;
+        let audioInitialized = false;
+        
+        function initAudio() {
+            if (audioInitialized) return;
+            
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Handle browser autoplay policy
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        audioInitialized = true;
+                    }).catch(e => {
+                        console.log('Audio resume failed:', e);
+                    });
+                } else {
+                    audioInitialized = true;
+                }
+            } catch(e) {
+                console.log('Audio not supported:', e);
+                audioContext = null;
+            }
+        }
+        
+        function playSound(frequency, duration, type = 'square', volume = 0.1) {
+            if (!soundEnabled || !audioContext || !audioInitialized) return;
+            
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + duration);
+            } catch(e) {
+                console.log('Audio playback error:', e);
+            }
+        }
+        
+        // Enhanced Enemy class
+        class Enemy {
+            constructor() {
+                this.x = -80;
+                this.y = Math.random() * (canvas.height - 200) + 100;
+                this.speed = 0.8 + Math.random() * 1.5 + (gameState.wave * 0.15);
+                this.health = 30 + Math.floor(gameState.wave * 8);
+                this.maxHealth = this.health;
+                this.radius = 12 + Math.random() * 8;
+                this.type = Math.random() < 0.7 ? 'soldier' : (Math.random() < 0.5 ? 'tank' : 'helicopter');
+                this.angle = 0;
+                this.bounty = 8 + Math.floor(gameState.wave * 2);
+                this.flashTime = 0;
+                
+                if (this.type === 'tank') {
+                    this.health *= 2.5;
+                    this.maxHealth = this.health;
+                    this.speed *= 0.6;
+                    this.radius *= 1.4;
+                    this.bounty *= 2;
+                } else if (this.type === 'helicopter') {
+                    this.health *= 1.5;
+                    this.maxHealth = this.health;
+                    this.speed *= 1.3;
+                    this.bounty *= 1.5;
+                    this.y = Math.random() * (canvas.height - 100) + 50;
+                }
+            }
+            
+            update() {
+                this.x += this.speed;
+                this.angle += this.type === 'helicopter' ? 0.15 : 0.05;
+                this.flashTime = Math.max(0, this.flashTime - 1);
+                
+                if (this.type === 'helicopter') {
+                    this.y += Math.sin(this.x * 0.01) * 0.5;
+                }
+                
+                if (this.x > canvas.width + 50) {
+                    gameState.health -= this.type === 'tank' ? 25 : (this.type === 'helicopter' ? 15 : 10);
+                    playSound(200, 0.5, 'sawtooth', 0.2);
+                    this.createExplosion();
+                    return false;
+                }
+                return true;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                if (this.flashTime > 0) {
+                    ctx.filter = 'brightness(200%) contrast(150%)';
+                }
+                
+                if (this.type === 'soldier') {
+                    this.drawSoldier();
+                } else if (this.type === 'tank') {
+                    this.drawTank();
+                } else {
+                    this.drawHelicopter();
+                }
+                
+                ctx.restore();
+                
+                // Enhanced health bar
+                const barWidth = this.radius * 2.5;
+                const barHeight = 6;
+                const healthPercent = this.health / this.maxHealth;
+                
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(this.x - barWidth/2 - 1, this.y - this.radius - 15, barWidth + 2, barHeight + 2);
+                
+                ctx.fillStyle = healthPercent > 0.6 ? '#4caf50' : healthPercent > 0.3 ? '#ff9800' : '#f44336';
+                ctx.fillRect(this.x - barWidth/2, this.y - this.radius - 14, healthPercent * barWidth, barHeight);
+                
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x - barWidth/2, this.y - this.radius - 14, barWidth, barHeight);
+            }
+            
+            drawSoldier() {
+                ctx.rotate(this.angle * 0.1);
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(-this.radius/2, -this.radius/2, this.radius, this.radius * 1.2);
+                ctx.fillStyle = '#654321';
+                ctx.fillRect(-this.radius/3, -this.radius/3, this.radius/1.5, this.radius/1.5);
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(0, -this.radius/3, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            drawTank() {
+                ctx.fillStyle = '#2e7d32';
+                ctx.fillRect(-this.radius, -this.radius/2, this.radius * 2, this.radius);
+                ctx.fillStyle = '#1b5e20';
+                ctx.fillRect(-this.radius/2, -this.radius/2, this.radius, this.radius/2);
+                ctx.fillStyle = '#424242';
+                ctx.fillRect(this.radius/2, -2, this.radius, 4);
+            }
+            
+            drawHelicopter() {
+                ctx.fillStyle = '#37474f';
+                ctx.fillRect(-this.radius, -this.radius/3, this.radius * 2, this.radius/1.5);
+                ctx.strokeStyle = '#263238';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-this.radius * 1.5, -this.radius);
+                ctx.lineTo(this.radius * 1.5, -this.radius);
+                ctx.stroke();
+            }
+            
+            takeDamage(damage, damageType = 'normal') {
+                this.health -= damage;
+                this.flashTime = 5;
+                totalDamageDealt += damage;
+                
+                // Create damage text
+                this.createDamageText(damage);
+                
+                if (this.health <= 0) {
+                    gameState.score += this.bounty * 10;
+                    gameState.money += this.bounty;
+                    gameState.kills++;
+                    playSound(800 + Math.random() * 400, 0.15, 'square', 0.15);
+                    this.createExplosion();
+                    return true;
+                }
+                playSound(600, 0.05, 'sawtooth', 0.1);
+                return false;
+            }
+            
+            createDamageText(damage) {
+                gameState.damageTexts.push({
+                    x: this.x + (Math.random() - 0.5) * 20,
+                    y: this.y - 20,
+                    damage: Math.floor(damage),
+                    life: 60,
+                    vy: -2
+                });
+            }
+            
+            createExplosion() {
+                gameState.explosions.push(new Explosion(this.x, this.y, this.radius * 2));
+                for (let i = 0; i < 12; i++) {
+                    gameState.particles.push(new Particle(
+                        this.x, this.y,
+                        (Math.random() - 0.5) * 15,
+                        (Math.random() - 0.5) * 15,
+                        ['#ff4444', '#ff8800', '#ffff00'][Math.floor(Math.random() * 3)]
+                    ));
+                }
+            }
+        }
+        
+        // Enhanced Turret class
+        class Turret {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.angle = 0;
+                this.config = { ...weaponTypes[type] };
+                this.fireTimer = 0;
+                this.target = null;
+                this.level = 1;
+                this.kills = 0;
+                this.totalDamage = 0;
+                this.muzzleFlash = 0;
+            }
+            
+            update() {
+                this.fireTimer++;
+                this.muzzleFlash = Math.max(0, this.muzzleFlash - 1);
+                
+                // Find best target
+                this.target = null;
+                let bestScore = 0;
+                
+                for (let enemy of gameState.enemies) {
+                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    if (dist <= this.config.range) {
+                        const score = (1 - dist / this.config.range) + (enemy.health / enemy.maxHealth);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            this.target = enemy;
+                        }
+                    }
+                }
+                
+                if (this.target) {
+                    const targetAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                    this.angle = this.lerp(this.angle, targetAngle, 0.15);
+                    
+                    if (this.fireTimer >= this.config.fireRate) {
+                        this.fire();
+                        this.fireTimer = 0;
+                    }
+                }
+            }
+            
+            lerp(a, b, t) {
+                const diff = b - a;
+                if (Math.abs(diff) > Math.PI) {
+                    if (diff > 0) a += Math.PI * 2;
+                    else a -= Math.PI * 2;
+                }
+                return a + (b - a) * t;
+            }
+            
+            fire() {
+                if (this.config.laser) {
+                    this.fireLaser();
+                } else {
+                    gameState.bullets.push(new Bullet(
+                        this.x + Math.cos(this.angle) * 25,
+                        this.y + Math.sin(this.angle) * 25,
+                        this.angle, this.target, this.config, this
+                    ));
+                }
+                
+                this.muzzleFlash = 8;
+                playSound(this.config.sound, 0.08, 'square', 0.12);
+                
+                // Muzzle flash particles
+                for (let i = 0; i < 3; i++) {
+                    gameState.particles.push(new Particle(
+                        this.x + Math.cos(this.angle) * 25,
+                        this.y + Math.sin(this.angle) * 25,
+                        Math.cos(this.angle) * 8 + (Math.random() - 0.5) * 4,
+                        Math.sin(this.angle) * 8 + (Math.random() - 0.5) * 4,
+                        '#ffff88'
+                    ));
+                }
+            }
+            
+            fireLaser() {
+                if (!this.target) return;
+                
+                // Instant laser damage
+                if (this.target.takeDamage(this.config.damage, 'laser')) {
+                    this.kills++;
+                    const index = gameState.enemies.indexOf(this.target);
+                    if (index > -1) gameState.enemies.splice(index, 1);
+                }
+                
+                // Laser visual effect
+                gameState.particles.push(new LaserBeam(
+                    this.x, this.y, this.target.x, this.target.y
+                ));
+            }
+            
+            draw() {
+                // Range indicator when selected
+                if (selectedTurret === this) {
+                    ctx.strokeStyle = 'rgba(0, 255, 65, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.config.range, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Turret platform
+                ctx.fillStyle = '#424242';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#616161';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                // Weapon-specific barrel
+                this.drawWeapon();
+                
+                ctx.restore();
+                
+                // Turret center
+                ctx.fillStyle = '#757575';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Level indicator
+                ctx.fillStyle = '#00ff41';
+                ctx.font = 'bold 12px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`L${this.level}`, this.x, this.y - 35);
+                
+                // Muzzle flash
+                if (this.muzzleFlash > 0) {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.angle);
+                    ctx.fillStyle = `rgba(255, 255, 100, ${this.muzzleFlash / 8})`;
+                    ctx.beginPath();
+                    ctx.arc(30, 0, this.muzzleFlash * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+            
+            drawWeapon() {
+                const colors = {
+                    machinegun: '#666666',
+                    sniper: '#4a4a4a',
+                    rocket: '#8b4513',
+                    laser: '#9c27b0'
+                };
+                
+                ctx.fillStyle = colors[this.type] || '#666666';
+                
+                if (this.type === 'rocket') {
+                    ctx.fillRect(0, -4, 35, 8);
+                    ctx.fillRect(30, -6, 8, 12);
+                } else if (this.type === 'sniper') {
+                    ctx.fillRect(0, -2, 40, 4);
+                } else if (this.type === 'laser') {
+                    ctx.fillRect(0, -5, 30, 10);
+                    ctx.fillStyle = '#e91e63';
+                    ctx.fillRect(25, -2, 8, 4);
+                } else {
+                    ctx.fillRect(0, -3, 28, 6);
+                }
+            }
+            
+            upgrade(type) {
+                if (type === 'damage') {
+                    this.config.damage = Math.floor(this.config.damage * 1.3);
+                    return 100;
+                } else if (type === 'range') {
+                    this.config.range = Math.floor(this.config.range * 1.2);
+                    return 80;
+                } else if (type === 'speed') {
+                    this.config.fireRate = Math.max(5, Math.floor(this.config.fireRate * 0.8));
+                    return 60;
+                }
+                this.level++;
+                return 0;
+            }
+        }
+        
+        // Enhanced Bullet class
+        class Bullet {
+            constructor(x, y, angle, target, config, turret) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.target = target;
+                this.config = config;
+                this.turret = turret;
+                this.speed = config.bulletSpeed;
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+                this.life = 120;
+                this.trail = [];
+            }
+            
+            update() {
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 8) this.trail.shift();
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                
+                // Check collision with enemies
+                for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                    const enemy = gameState.enemies[i];
+                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    
+                    if (dist < enemy.radius + 5) {
+                        if (this.config.explosive) {
+                            this.explode();
+                        } else {
+                            if (enemy.takeDamage(this.config.damage)) {
+                                this.turret.kills++;
+                                gameState.enemies.splice(i, 1);
+                            }
+                        }
+                        return false;
+                    }
+                }
+                
+                return this.life > 0 && this.x > -100 && this.x < canvas.width + 100;
+            }
+            
+            explode() {
+                gameState.explosions.push(new Explosion(this.x, this.y, this.config.explosionRadius));
+                
+                // Damage all enemies in radius
+                for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                    const enemy = gameState.enemies[i];
+                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    
+                    if (dist < this.config.explosionRadius) {
+                        const damage = this.config.damage * (1 - dist / this.config.explosionRadius);
+                        if (enemy.takeDamage(damage)) {
+                            this.turret.kills++;
+                            gameState.enemies.splice(i, 1);
+                        }
+                    }
+                }
+                
+                playSound(300, 0.3, 'sawtooth', 0.2);
+            }
+            
+            draw() {
+                // Trail effect
+                for (let i = 0; i < this.trail.length; i++) {
+                    const alpha = i / this.trail.length * 0.5;
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = this.config.color;
+                    ctx.beginPath();
+                    ctx.arc(this.trail[i].x, this.trail[i].y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                
+                // Main bullet
+                ctx.fillStyle = this.config.color;
+                ctx.shadowColor = this.config.color;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+        
+        // Explosion class
+        class Explosion {
+            constructor(x, y, radius) {
+                this.x = x;
+                this.y = y;
+                this.radius = 0;
+                this.maxRadius = radius;
+                this.life = 30;
+                this.maxLife = 30;
+            }
+            
+            update() {
+                this.radius = (1 - this.life / this.maxLife) * this.maxRadius;
+                this.life--;
+                return this.life > 0;
+            }
+            
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.globalAlpha = alpha;
+                
+                // Outer ring
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner glow
+                ctx.fillStyle = '#ffaa00';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // Laser Beam class
+        class LaserBeam {
+            constructor(x1, y1, x2, y2) {
+                this.x1 = x1;
+                this.y1 = y1;
+                this.x2 = x2;
+                this.y2 = y2;
+                this.life = 15;
+                this.maxLife = 15;
+            }
+            
+            update() {
+                this.life--;
+                return this.life > 0;
+            }
+            
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.globalAlpha = alpha;
+                
+                ctx.strokeStyle = '#ff00ff';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(this.x1, this.y1);
+                ctx.lineTo(this.x2, this.y2);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // Enhanced Particle class
+        class Particle {
+            constructor(x, y, vx, vy, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.life = 40 + Math.random() * 20;
+                this.maxLife = this.life;
+                this.size = 2 + Math.random() * 3;
+                this.gravity = 0.1;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+                this.life--;
+                return this.life > 0;
+            }
+            
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // Background decoration
+        function createBackground() {
+            gameState.background = [];
+            for (let i = 0; i < 20; i++) {
+                gameState.background.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 3 + 1,
+                    alpha: Math.random() * 0.3 + 0.1
+                });
+            }
+        }
+        
+        function spawnEnemy() {
+            gameState.enemies.push(new Enemy());
+            gameState.enemiesThisWave++;
+        }
+        
+        function updateGame() {
+            if (!gameRunning || gamePaused) return;
+            
+            gameTime++;
+            
+            // Spawn enemies
+            gameState.enemySpawnTimer++;
+            const spawnRate = Math.max(30 - gameState.wave * 2, 15);
+            
+            if (gameState.enemySpawnTimer >= spawnRate && 
+                gameState.enemiesThisWave < gameState.waveEnemies) {
+                spawnEnemy();
+                gameState.enemySpawnTimer = 0;
+            }
+            
+            // Wave progression
+            gameState.waveTimer++;
+            if (gameState.enemies.length === 0 && gameState.enemiesThisWave >= gameState.waveEnemies) {
+                gameState.wave++;
+                gameState.waveTimer = 0;
+                gameState.waveEnemies = Math.floor(5 + gameState.wave * 2.5);
+                gameState.enemiesThisWave = 0;
+                gameState.money += 50 + gameState.wave * 10;
+                playSound(600, 0.8, 'sine', 0.2);
+                
+                // Show wave notification
+                createWaveNotification();
+            }
+            
+            // Update game objects with limits to prevent memory issues
+            gameState.enemies = gameState.enemies.filter(enemy => enemy.update());
+            gameState.turrets.forEach(turret => turret.update());
+            gameState.bullets = gameState.bullets.filter(bullet => bullet.update());
+            
+            // Limit particles to prevent performance issues
+            gameState.particles = gameState.particles.filter(particle => particle.update());
+            if (gameState.particles.length > 300) {
+                gameState.particles.splice(0, gameState.particles.length - 250);
+            }
+            
+            gameState.explosions = gameState.explosions.filter(explosion => explosion.update());
+            
+            // Update damage texts with limit
+            gameState.damageTexts = gameState.damageTexts.filter(text => {
+                text.y += text.vy;
+                text.life--;
+                return text.life > 0;
+            });
+            if (gameState.damageTexts.length > 50) {
+                gameState.damageTexts.splice(0, gameState.damageTexts.length - 40);
+            }
+            
+            // Calculate DPS
+            if (gameTime - lastDpsUpdate >= 60) {
+                const dps = Math.floor(totalDamageDealt / ((gameTime / 60) || 1));
+                document.getElementById('dps').textContent = dps;
+                lastDpsUpdate = gameTime;
+            }
+            
+            // Check game over
+            if (gameState.health <= 0) {
+                gameOver();
+            }
+            
+            updateUI();
+        }
+        
+        function createWaveNotification() {
+            // Add visual wave start effect
+            for (let i = 0; i < 20; i++) {
+                gameState.particles.push(new Particle(
+                    canvas.width / 2 + (Math.random() - 0.5) * 200,
+                    canvas.height / 2 + (Math.random() - 0.5) * 100,
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 10,
+                    '#00ff41'
+                ));
+            }
+        }
+        
+        function drawGame() {
+            // Clear canvas with gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0a1a0a');
+            gradient.addColorStop(1, '#1a2a1a');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background elements
+            ctx.fillStyle = 'rgba(0, 255, 65, 0.1)';
+            for (let bg of gameState.background) {
+                ctx.globalAlpha = bg.alpha;
+                ctx.beginPath();
+                ctx.arc(bg.x, bg.y, bg.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 255, 65, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Draw game objects in order
+            gameState.explosions.forEach(explosion => explosion.draw());
+            gameState.particles.forEach(particle => particle.draw());
+            gameState.enemies.forEach(enemy => enemy.draw());
+            gameState.turrets.forEach(turret => turret.draw());
+            gameState.bullets.forEach(bullet => bullet.draw());
+            
+            // Draw damage texts
+            ctx.font = 'bold 16px monospace';
+            ctx.textAlign = 'center';
+            gameState.damageTexts.forEach(text => {
+                const alpha = text.life / 60;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#ff6b35';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeText(`-${text.damage}`, text.x, text.y);
+                ctx.fillText(`-${text.damage}`, text.x, text.y);
+            });
+            ctx.globalAlpha = 1;
+            
+            // Draw placement preview
+            if (gameState.placingTurret) {
+                const config = weaponTypes[selectedWeapon];
+                const canAfford = gameState.money >= config.cost;
+                const validPosition = checkTurretPlacement(mouseX, mouseY);
+                
+                ctx.strokeStyle = canAfford && validPosition ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.8)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(mouseX, mouseY, 25, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Range preview
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(mouseX, mouseY, config.range, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // Draw wave progress
+            if (gameState.waveTimer < 180) {
+                ctx.fillStyle = 'rgba(0, 255, 65, 0.8)';
+                ctx.font = 'bold 24px monospace';
+                ctx.textAlign = 'center';
+                const alpha = 1 - (gameState.waveTimer / 180);
+                ctx.globalAlpha = alpha;
+                ctx.fillText(`WAVE ${gameState.wave}`, canvas.width / 2, canvas.height / 2);
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        function checkTurretPlacement(x, y) {
+            // Check minimum distance from other turrets
+            for (let turret of gameState.turrets) {
+                if (Math.hypot(turret.x - x, turret.y - y) < 60) {
+                    return false;
+                }
+            }
+            
+            // Check screen boundaries
+            return x > 50 && x < canvas.width - 50 && y > 50 && y < canvas.height - 50;
+        }
+        
+        function gameLoop() {
+            updateGame();
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function updateUI() {
+            document.getElementById('health').textContent = gameState.health;
+            document.getElementById('score').textContent = gameState.score.toLocaleString();
+            document.getElementById('wave').textContent = gameState.wave;
+            document.getElementById('money').textContent = gameState.money;
+            document.getElementById('kills').textContent = gameState.kills;
+            document.getElementById('time').textContent = Math.floor(gameTime / 60);
+            
+            // Update weapon buttons
+            document.querySelectorAll('.weapon-btn').forEach(btn => {
+                const weapon = btn.dataset.weapon;
+                const cost = weaponTypes[weapon].cost;
+                btn.disabled = gameState.money < cost;
+                btn.classList.toggle('selected', weapon === selectedWeapon);
+            });
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = gameState.score.toLocaleString();
+            document.getElementById('finalWave').textContent = gameState.wave;
+            document.getElementById('finalKills').textContent = gameState.kills;
+            document.getElementById('finalTime').textContent = Math.floor(gameTime / 60);
+            document.getElementById('gameOver').style.display = 'block';
+            playSound(200, 2, 'sawtooth', 0.3);
+        }
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameRunning = true;
+            gamePaused = false;
+            gameTime = 0;
+            totalDamageDealt = 0;
+            lastDpsUpdate = 0;
+            
+            // Initialize audio on user interaction
+            initAudio();
+            createBackground();
+            gameLoop();
+        }
+        
+        function restartGame() {
+            gameState = {
+                health: 100,
+                score: 0,
+                wave: 1,
+                money: 150,
+                kills: 0,
+                enemies: [],
+                turrets: [],
+                bullets: [],
+                particles: [],
+                explosions: [],
+                damageTexts: [],
+                enemySpawnTimer: 0,
+                waveTimer: 0,
+                waveEnemies: 5,
+                enemiesThisWave: 0,
+                placingTurret: false,
+                background: []
+            };
+            
+            selectedTurret = null;
+            gameTime = 0;
+            totalDamageDealt = 0;
+            lastDpsUpdate = 0;
+            
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('upgradePanel').style.display = 'none';
+            gameRunning = true;
+            gamePaused = false;
+            createBackground();
+            updateUI();
+        }
+        
+        // Enhanced mouse/touch handling
+        let mouseX = 0, mouseY = 0;
+        const crosshair = document.getElementById('crosshair');
+        
+        function getEventPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else if (e.changedTouches && e.changedTouches.length > 0) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX || 0;
+                clientY = e.clientY || 0;
+            }
+            
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+        
+        function updateCrosshair(x, y) {
+            if (x && y) {
+                crosshair.style.left = Math.max(0, Math.min(window.innerWidth - 30, x - 15)) + 'px';
+                crosshair.style.top = Math.max(0, Math.min(window.innerHeight - 30, y - 15)) + 'px';
+                crosshair.style.display = 'block';
+            }
+        }
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const pos = getEventPos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            updateCrosshair(e.clientX, e.clientY);
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const pos = getEventPos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            if (e.touches[0]) {
+                updateCrosshair(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+        
+        canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('touchend', handleClick);
+        
+        function handleClick(e) {
+            e.preventDefault();
+            if (!gameRunning) return;
+            
+            const pos = getEventPos(e);
+            
+            // Check if clicking on existing turret for selection
+            for (let turret of gameState.turrets) {
+                if (Math.hypot(turret.x - pos.x, turret.y - pos.y) < 30) {
+                    selectedTurret = selectedTurret === turret ? null : turret;
+                    document.getElementById('upgradePanel').style.display = 
+                        selectedTurret ? 'block' : 'none';
+                    return;
+                }
+            }
+            
+            selectedTurret = null;
+            document.getElementById('upgradePanel').style.display = 'none';
+            
+            if (gameState.placingTurret) {
+                const config = weaponTypes[selectedWeapon];
+                if (gameState.money >= config.cost && checkTurretPlacement(pos.x, pos.y)) {
+                    gameState.turrets.push(new Turret(pos.x, pos.y, selectedWeapon));
+                    gameState.money -= config.cost;
+                    gameState.placingTurret = false;
+                    playSound(500, 0.3, 'sine', 0.15);
+                    
+                    // Reset weapon selection state
+                    document.querySelectorAll('.weapon-btn').forEach(btn => {
+                        btn.classList.remove('selected');
+                    });
+                    
+                    // Try to initialize audio on first user interaction
+                    if (!audioInitialized) {
+                        initAudio();
+                    }
+                }
+            }
+        }
+        
+        // Weapon selection with proper state management
+        document.querySelectorAll('.weapon-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const weapon = btn.dataset.weapon;
+                const cost = weaponTypes[weapon].cost;
+                
+                if (gameState.money >= cost) {
+                    // Reset previous selection
+                    gameState.placingTurret = false;
+                    document.querySelectorAll('.weapon-btn').forEach(b => b.classList.remove('selected'));
+                    
+                    // Set new selection
+                    selectedWeapon = weapon;
+                    gameState.placingTurret = true;
+                    btn.classList.add('selected');
+                } else {
+                    // Flash red if can't afford
+                    btn.style.background = 'linear-gradient(145deg, #ff0000, #cc0000)';
+                    setTimeout(() => {
+                        btn.style.background = '';
+                    }, 200);
+                }
+            });
+        });
+        
+        // Control buttons
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            gamePaused = !gamePaused;
+            document.getElementById('pauseBtn').innerHTML = gamePaused ? '▶️ RESUME' : '⏸️ PAUSE';
+        });
+        
+        document.getElementById('soundBtn').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundBtn').innerHTML = soundEnabled ? '🔊 SOUND' : '🔇 MUTED';
+        });
+        
+        document.getElementById('upgradeBtn').addEventListener('click', () => {
+            const panel = document.getElementById('upgradePanel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        });
+        
+        // Upgrade functions
+        function upgradeDamage() {
+            if (selectedTurret && gameState.money >= 100) {
+                gameState.money -= selectedTurret.upgrade('damage');
+                updateUI();
+            }
+        }
+        
+        function upgradeRange() {
+            if (selectedTurret && gameState.money >= 80) {
+                gameState.money -= selectedTurret.upgrade('range');
+                updateUI();
+            }
+        }
+        
+        function upgradeSpeed() {
+            if (selectedTurret && gameState.money >= 60) {
+                gameState.money -= selectedTurret.upgrade('speed');
+                updateUI();
+            }
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    document.getElementById('pauseBtn').click();
+                    break;
+                case '1':
+                    document.querySelector('[data-weapon="machinegun"]').click();
+                    break;
+                case '2':
+                    document.querySelector('[data-weapon="sniper"]').click();
+                    break;
+                case '3':
+                    document.querySelector('[data-weapon="rocket"]').click();
+                    break;
+                case '4':
+                    document.querySelector('[data-weapon="laser"]').click();
+                    break;
+                case 'Escape':
+                    gameState.placingTurret = false;
+                    selectedTurret = null;
+                    document.getElementById('upgradePanel').style.display = 'none';
+                    break;
+            }
+        });
+        
+        // Prevent scrolling on mobile
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+        
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+        
+        // Initialize
+        updateUI();
+        createBackground();
+    </script>
+</body>
+</html>
