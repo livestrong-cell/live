@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stick Man Fight</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            background: linear-gradient(180deg, #87CEEB 0%, #90EE90 100%);
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            backdrop-filter: blur(10px);
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:active,
+        .control-btn.pressed {
+            transform: scale(0.9);
+            background: rgba(255,255,255,0.5);
+            border-color: rgba(255,255,255,1);
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            z-index: 20;
+        }
+
+        #gameOverScreen h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        #gameOverScreen p {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        #restartBtn {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #restartBtn:hover {
+            background: #45a049;
+        }
+
+        @media (max-width: 768px) {
+            .control-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 12px;
+            }
+            
+            #ui {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Health: <span id="health">100</span></div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="controls">
+            <div class="control-group">
+                <div class="control-btn" id="leftBtn">←</div>
+                <div class="control-btn" id="rightBtn">→</div>
+            </div>
+            <div class="control-group">
+                <div class="control-btn" id="jumpBtn">JUMP</div>
+                <div class="control-btn" id="punchBtn">PUNCH</div>
+                <div class="control-btn" id="kickBtn">KICK</div>
+            </div>
+        </div>
+        
+        <div id="gameOverScreen">
+            <h1>Game Over!</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button id="restartBtn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.score = 0;
+                this.gameRunning = true;
+                this.enemySpawnInterval = null;
+                this.groundLevel = 50;
+                
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                this.player = new StickFigure(100, this.getGroundY(), 'player');
+                this.enemies = [];
+                this.particles = [];
+                
+                this.keys = {};
+                this.setupControls();
+                this.spawnEnemies();
+                
+                // Audio context for sound effects
+                this.audioContext = null;
+                this.initAudio();
+                
+                this.gameLoop();
+            }
+            
+            getGroundY() {
+                return this.canvas.height - this.groundLevel - 60; // 60 is stick figure height
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                // Update player position to stay on ground
+                if (this.player) {
+                    this.player.y = this.getGroundY();
+                    // Keep player within bounds
+                    this.player.x = Math.max(0, Math.min(this.player.x, this.canvas.width - 30));
+                }
+                
+                // Update enemy positions
+                if (this.enemies) {
+                    this.enemies.forEach(enemy => {
+                        enemy.y = this.getGroundY();
+                    });
+                }
+            }
+            
+            initAudio() {
+                try {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) {
+                        this.audioContext = new AudioContextClass();
+                    }
+                } catch (e) {
+                    console.log('Audio not supported:', e);
+                    this.audioContext = null;
+                }
+            }
+            
+            playSound(frequency, duration, type = 'sine') {
+                if (!this.audioContext) return;
+                
+                // Resume audio context if suspended
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().catch(e => console.log('Audio resume failed:', e));
+                }
+                
+                try {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                    oscillator.type = type;
+                    
+                    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration);
+                } catch (e) {
+                    console.log('Error playing sound:', e);
+                }
+            }
+            
+            setupControls() {
+                // Get button elements
+                const leftBtn = document.getElementById('leftBtn');
+                const rightBtn = document.getElementById('rightBtn');
+                const jumpBtn = document.getElementById('jumpBtn');
+                const punchBtn = document.getElementById('punchBtn');
+                const kickBtn = document.getElementById('kickBtn');
+                
+                // Helper function to add visual feedback
+                const addButtonFeedback = (btn) => {
+                    const pressBtn = () => btn.classList.add('pressed');
+                    const releaseBtn = () => btn.classList.remove('pressed');
+                    
+                    // Mouse events
+                    btn.addEventListener('mousedown', pressBtn);
+                    btn.addEventListener('mouseup', releaseBtn);
+                    btn.addEventListener('mouseleave', releaseBtn);
+                    
+                    // Touch events
+                    btn.addEventListener('touchstart', pressBtn, { passive: true });
+                    btn.addEventListener('touchend', releaseBtn, { passive: true });
+                    btn.addEventListener('touchcancel', releaseBtn, { passive: true });
+                };
+                
+                // Add visual feedback to all buttons
+                [leftBtn, rightBtn, jumpBtn, punchBtn, kickBtn].forEach(addButtonFeedback);
+                
+                // Movement buttons (continuous press)
+                const setupMovementButton = (btn, key) => {
+                    let isPressed = false;
+                    
+                    const startMovement = (e) => {
+                        e.preventDefault();
+                        isPressed = true;
+                        this.keys[key] = true;
+                    };
+                    
+                    const stopMovement = (e) => {
+                        e.preventDefault();
+                        isPressed = false;
+                        this.keys[key] = false;
+                    };
+                    
+                    // Touch events
+                    btn.addEventListener('touchstart', startMovement, { passive: false });
+                    btn.addEventListener('touchend', stopMovement, { passive: false });
+                    btn.addEventListener('touchcancel', stopMovement, { passive: false });
+                    
+                    // Mouse events
+                    btn.addEventListener('mousedown', startMovement);
+                    btn.addEventListener('mouseup', stopMovement);
+                    btn.addEventListener('mouseleave', stopMovement);
+                    
+                    // Prevent context menu on long press
+                    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+                };
+                
+                setupMovementButton(leftBtn, 'ArrowLeft');
+                setupMovementButton(rightBtn, 'ArrowRight');
+                
+                // Action buttons (single press)
+                const setupActionButton = (btn, action) => {
+                    const handleAction = (e) => {
+                        e.preventDefault();
+                        action();
+                    };
+                    
+                    // Touch events
+                    btn.addEventListener('touchstart', handleAction, { passive: false });
+                    
+                    // Mouse events
+                    btn.addEventListener('mousedown', handleAction);
+                    
+                    // Prevent context menu
+                    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+                };
+                
+                setupActionButton(jumpBtn, () => {
+                    this.player.jump();
+                });
+                
+                setupActionButton(punchBtn, () => {
+                    this.player.punch();
+                    this.playSound(200, 0.1, 'square');
+                });
+                
+                setupActionButton(kickBtn, () => {
+                    this.player.kick();
+                    this.playSound(150, 0.15, 'sawtooth');
+                });
+                
+                // Keyboard controls
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.player.jump();
+                    }
+                    if (e.code === 'KeyZ') {
+                        this.player.punch();
+                        this.playSound(200, 0.1, 'square');
+                    }
+                    if (e.code === 'KeyX') {
+                        this.player.kick();
+                        this.playSound(150, 0.15, 'sawtooth');
+                    }
+                });
+                
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+                
+                // Restart button
+                document.getElementById('restartBtn').addEventListener('click', () => {
+                    this.restart();
+                });
+                
+                // Prevent zoom on double tap for mobile
+                document.addEventListener('touchstart', (e) => {
+                    if (e.touches.length > 1) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                let lastTouchEnd = 0;
+                document.addEventListener('touchend', (e) => {
+                    const now = (new Date()).getTime();
+                    if (now - lastTouchEnd <= 300) {
+                        e.preventDefault();
+                    }
+                    lastTouchEnd = now;
+                }, { passive: false });
+            }
+            
+            spawnEnemies() {
+                // Clear any existing interval
+                if (this.enemySpawnInterval) {
+                    clearInterval(this.enemySpawnInterval);
+                }
+                
+                this.enemySpawnInterval = setInterval(() => {
+                    if (this.gameRunning && this.enemies.length < 3) {
+                        const x = this.canvas.width + 50;
+                        const y = this.getGroundY();
+                        this.enemies.push(new StickFigure(x, y, 'enemy'));
+                    }
+                }, 2000);
+            }
+            
+            update() {
+                if (!this.gameRunning) return;
+                
+                // Player movement
+                if (this.keys['ArrowLeft'] || this.keys['KeyA']) {
+                    this.player.moveLeft(this.canvas.width);
+                }
+                if (this.keys['ArrowRight'] || this.keys['KeyD']) {
+                    this.player.moveRight(this.canvas.width);
+                }
+                
+                // Update player
+                this.player.update(this.getGroundY());
+                
+                // Update enemies
+                for (let i = this.enemies.length - 1; i >= 0; i--) {
+                    const enemy = this.enemies[i];
+                    enemy.update(this.getGroundY());
+                    enemy.moveLeft();
+                    
+                    // Remove enemies that are off screen
+                    if (enemy.x < -100) {
+                        this.enemies.splice(i, 1);
+                        continue;
+                    }
+                    
+                    // Check collision with player
+                    if (this.checkCollision(this.player, enemy)) {
+                        if (this.player.isAttacking) {
+                            // Player hits enemy
+                            this.enemies.splice(i, 1);
+                            this.score += 10;
+                            this.createParticles(enemy.x, enemy.y);
+                            this.playSound(300, 0.2, 'triangle');
+                        } else if (enemy.isAttacking || Math.abs(this.player.x - enemy.x) < 40) {
+                            // Enemy hits player
+                            this.player.takeDamage(10);
+                            this.playSound(100, 0.3, 'sawtooth');
+                            if (this.player.health <= 0) {
+                                this.gameOver();
+                                return;
+                            }
+                        }
+                    }
+                }
+                
+                // Update particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const particle = this.particles[i];
+                    particle.update();
+                    if (particle.life <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+                
+                // Limit particle count to prevent memory issues
+                if (this.particles.length > 50) {
+                    this.particles = this.particles.slice(-30);
+                }
+                
+                // Update UI
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('health').textContent = Math.max(0, this.player.health);
+            }
+            
+            checkCollision(obj1, obj2) {
+                const size = 30;
+                return obj1.x < obj2.x + size &&
+                       obj1.x + size > obj2.x &&
+                       obj1.y < obj2.y + 60 &&
+                       obj1.y + 60 > obj2.y;
+            }
+            
+            createParticles(x, y) {
+                for (let i = 0; i < 8; i++) {
+                    this.particles.push(new Particle(x, y));
+                }
+            }
+            
+            draw() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw ground
+                this.ctx.fillStyle = '#8B4513';
+                this.ctx.fillRect(0, this.canvas.height - this.groundLevel, this.canvas.width, this.groundLevel);
+                
+                // Draw player
+                this.player.draw(this.ctx);
+                
+                // Draw enemies
+                this.enemies.forEach(enemy => {
+                    enemy.draw(this.ctx);
+                });
+                
+                // Draw particles
+                this.particles.forEach(particle => {
+                    particle.draw(this.ctx);
+                });
+            }
+            
+            gameOver() {
+                this.gameRunning = false;
+                if (this.enemySpawnInterval) {
+                    clearInterval(this.enemySpawnInterval);
+                    this.enemySpawnInterval = null;
+                }
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+                this.playSound(80, 1, 'triangle');
+            }
+            
+            restart() {
+                // Clean up intervals
+                if (this.enemySpawnInterval) {
+                    clearInterval(this.enemySpawnInterval);
+                    this.enemySpawnInterval = null;
+                }
+                
+                this.gameRunning = true;
+                this.score = 0;
+                this.player = new StickFigure(100, this.getGroundY(), 'player');
+                this.enemies = [];
+                this.particles = [];
+                this.keys = {}; // Clear any stuck keys
+                document.getElementById('gameOverScreen').style.display = 'none';
+                
+                // Restart enemy spawning
+                this.spawnEnemies();
+            }
+            
+            gameLoop() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        class StickFigure {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.velocityY = 0;
+                this.velocityX = 0;
+                this.onGround = true;
+                this.health = type === 'player' ? 100 : 30;
+                this.maxHealth = this.health;
+                this.isAttacking = false;
+                this.attackType = '';
+                this.attackCooldown = 0;
+                this.animationFrame = 0;
+                this.color = type === 'player' ? '#0066CC' : '#CC0000';
+                this.moveSpeed = 3;
+                this.isMoving = false;
+                this.facing = 1; // 1 for right, -1 for left
+                this.bounceOffset = 0;
+                this.hurtAnimation = 0;
+                this.attackAnimation = 0;
+                this.idleAnimation = 0;
+            }
+            
+            update(groundY) {
+                // Gravity and physics
+                if (!this.onGround) {
+                    this.velocityY += 0.8;
+                    this.y += this.velocityY;
+                    
+                    // Ground collision with bounce effect
+                    if (this.y >= groundY) {
+                        this.y = groundY;
+                        this.velocityY = 0;
+                        this.onGround = true;
+                        this.bounceOffset = 3; // Landing bounce
+                    }
+                }
+                
+                // Smooth movement with momentum
+                this.x += this.velocityX;
+                this.velocityX *= 0.85; // Friction
+                
+                // Update bounce offset for landing animation
+                if (this.bounceOffset > 0) {
+                    this.bounceOffset *= 0.8;
+                    if (this.bounceOffset < 0.1) this.bounceOffset = 0;
+                }
+                
+                // Attack cooldown and animations
+                if (this.attackCooldown > 0) {
+                    this.attackCooldown--;
+                    this.attackAnimation = Math.max(0, this.attackAnimation - 2);
+                    if (this.attackCooldown === 0) {
+                        this.isAttacking = false;
+                        this.attackType = '';
+                        this.attackAnimation = 0;
+                    }
+                }
+                
+                // Hurt animation decay
+                if (this.hurtAnimation > 0) {
+                    this.hurtAnimation--;
+                }
+                
+                // Update animation counters
+                this.animationFrame++;
+                this.idleAnimation += 0.05;
+                
+                // Reset moving flag (will be set by movement functions)
+                this.isMoving = false;
+            }
+            
+            moveLeft(canvasWidth = 800) {
+                this.velocityX = Math.max(this.velocityX - 0.5, -this.moveSpeed);
+                this.facing = -1;
+                this.isMoving = true;
+                if (this.x < 0) {
+                    this.x = 0;
+                    this.velocityX = 0;
+                }
+            }
+            
+            moveRight(canvasWidth = 800) {
+                this.velocityX = Math.min(this.velocityX + 0.5, this.moveSpeed);
+                this.facing = 1;
+                this.isMoving = true;
+                const maxX = canvasWidth - 30;
+                if (this.x > maxX) {
+                    this.x = maxX;
+                    this.velocityX = 0;
+                }
+            }
+            
+            jump() {
+                if (this.onGround) {
+                    this.velocityY = -15;
+                    this.onGround = false;
+                    this.bounceOffset = -2; // Pre-jump crouch effect
+                }
+            }
+            
+            punch() {
+                if (this.attackCooldown === 0) {
+                    this.isAttacking = true;
+                    this.attackType = 'punch';
+                    this.attackCooldown = 30;
+                    this.attackAnimation = 20;
+                }
+            }
+            
+            kick() {
+                if (this.attackCooldown === 0) {
+                    this.isAttacking = true;
+                    this.attackType = 'kick';
+                    this.attackCooldown = 40;
+                    this.attackAnimation = 25;
+                }
+            }
+            
+            takeDamage(amount) {
+                this.health = Math.max(0, this.health - amount);
+                this.hurtAnimation = 15;
+                // Knockback effect
+                this.velocityX += (Math.random() - 0.5) * 4;
+            }
+            
+            draw(ctx) {
+                // Save context for transformations
+                ctx.save();
+                
+                // Calculate animation offsets
+                const baseY = this.y - this.bounceOffset;
+                const hurtShake = this.hurtAnimation > 0 ? (Math.random() - 0.5) * 2 : 0;
+                const idleBob = Math.sin(this.idleAnimation) * 1;
+                
+                // Apply hurt effect (red tint and shake)
+                if (this.hurtAnimation > 0) {
+                    ctx.translate(hurtShake, hurtShake);
+                    ctx.globalAlpha = 0.7 + Math.sin(this.hurtAnimation * 0.5) * 0.3;
+                }
+                
+                // Main character color with hurt effect
+                let currentColor = this.color;
+                if (this.hurtAnimation > 0) {
+                    currentColor = this.hurtAnimation % 4 < 2 ? '#FF6666' : this.color;
+                }
+                
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // Body with idle bob
+                const bodyY = baseY + 20 + (!this.isMoving ? idleBob : 0);
+                ctx.beginPath();
+                ctx.moveTo(this.x + 15, bodyY);
+                ctx.lineTo(this.x + 15, baseY + 45);
+                ctx.stroke();
+                
+                // Head with subtle animation
+                const headBob = !this.isMoving ? idleBob * 0.5 : 0;
+                ctx.beginPath();
+                ctx.arc(this.x + 15, baseY + 10 + headBob, 8, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Eyes for more personality
+                ctx.fillStyle = currentColor;
+                ctx.fillRect(this.x + 12, baseY + 8 + headBob, 2, 2);
+                ctx.fillRect(this.x + 16, baseY + 8 + headBob, 2, 2);
+                
+                // Dynamic arms based on action
+                let leftArmX = this.x + 5;
+                let leftArmY = baseY + 35;
+                let rightArmX = this.x + 25;
+                let rightArmY = baseY + 35;
+                
+                if (this.isAttacking) {
+                    const attackIntensity = this.attackAnimation / 20;
+                    if (this.attackType === 'punch') {
+                        rightArmX += 15 * attackIntensity * this.facing;
+                        rightArmY -= 5 * attackIntensity;
+                    } else if (this.attackType === 'kick') {
+                        leftArmX -= 8 * attackIntensity;
+                        rightArmX -= 8 * attackIntensity;
+                        leftArmY += 3 * attackIntensity;
+                        rightArmY += 3 * attackIntensity;
+                    }
+                } else if (this.isMoving) {
+                    // Arm swing while walking
+                    const walkCycle = Math.sin(this.animationFrame * 0.3);
+                    leftArmX += walkCycle * 3;
+                    rightArmX -= walkCycle * 3;
+                    leftArmY += Math.abs(walkCycle) * 2;
+                    rightArmY += Math.abs(walkCycle) * 2;
+                }
+                
+                // Draw arms
+                ctx.beginPath();
+                ctx.moveTo(this.x + 15, bodyY);
+                ctx.lineTo(leftArmX, leftArmY);
+                ctx.moveTo(this.x + 15, bodyY);
+                ctx.lineTo(rightArmX, rightArmY);
+                ctx.stroke();
+                
+                // Dynamic legs
+                let leftLegX = this.x + 10;
+                let leftLegY = baseY + 60;
+                let rightLegX = this.x + 20;
+                let rightLegY = baseY + 60;
+                
+                if (this.isMoving && this.onGround) {
+                    // Walking animation
+                    const walkCycle = Math.sin(this.animationFrame * 0.4);
+                    leftLegX += walkCycle * 4;
+                    rightLegX -= walkCycle * 4;
+                    leftLegY -= Math.abs(walkCycle) * 3;
+                    rightLegY -= Math.abs(Math.sin(this.animationFrame * 0.4 + Math.PI)) * 3;
+                } else if (this.attackType === 'kick' && this.isAttacking) {
+                    // Kick animation
+                    const kickForce = this.attackAnimation / 25;
+                    rightLegX += 12 * kickForce * this.facing;
+                    rightLegY -= 5 * kickForce;
+                } else if (!this.onGround) {
+                    // Jump pose
+                    leftLegX -= 3;
+                    rightLegX += 3;
+                    leftLegY -= 5;
+                    rightLegY -= 5;
+                }
+                
+                // Draw legs
+                ctx.beginPath();
+                ctx.moveTo(this.x + 15, baseY + 45);
+                ctx.lineTo(leftLegX, leftLegY);
+                ctx.moveTo(this.x + 15, baseY + 45);
+                ctx.lineTo(rightLegX, rightLegY);
+                ctx.stroke();
+                
+                // Attack effect visualization
+                if (this.isAttacking && this.attackAnimation > 10) {
+                    ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+                    ctx.lineWidth = 2;
+                    
+                    if (this.attackType === 'punch') {
+                        // Punch effect
+                        const punchReach = 20 * (this.attackAnimation / 20);
+                        ctx.beginPath();
+                        ctx.arc(this.x + 15 + punchReach * this.facing, baseY + 25, 8, 0, Math.PI * 2);
+                        ctx.stroke();
+                    } else if (this.attackType === 'kick') {
+                        // Kick effect arc
+                        const kickReach = 25 * (this.attackAnimation / 25);
+                        ctx.beginPath();
+                        ctx.arc(this.x + 15 + kickReach * this.facing, baseY + 40, 12, 0, Math.PI);
+                        ctx.stroke();
+                    }
+                }
+                
+                // Health bar for enemies (with smooth animation)
+                if (this.type === 'enemy') {
+                    const healthBarWidth = 30;
+                    const healthPercentage = this.health / this.maxHealth;
+                    
+                    // Background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(this.x - 2, baseY - 12, healthBarWidth + 4, 6);
+                    
+                    // Red background
+                    ctx.fillStyle = '#FF4444';
+                    ctx.fillRect(this.x, baseY - 10, healthBarWidth, 4);
+                    
+                    // Green health with smooth transition
+                    ctx.fillStyle = healthPercentage > 0.5 ? '#44FF44' : 
+                                   healthPercentage > 0.25 ? '#FFFF44' : '#FF8844';
+                    ctx.fillRect(this.x, baseY - 10, healthPercentage * healthBarWidth, 4);
+                }
+                
+                // Restore context
+                ctx.restore();
+            }
+        }
+        
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.velocityX = (Math.random() - 0.5) * 8;
+                this.velocityY = (Math.random() - 0.5) * 8;
+                this.life = 30;
+                this.maxLife = 30;
+            }
+            
+            update() {
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+                this.velocityY += 0.2;
+                this.life--;
+            }
+            
+            draw(ctx) {
+                const alpha = this.life / this.maxLife;
+                ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
+                ctx.fillRect(this.x, this.y, 3, 3);
+            }
+        }
+        
+        // Start the game
+        let game;
+        
+        // Initialize audio context on first user interaction
+        document.addEventListener('click', initializeAudio, { once: true });
+        document.addEventListener('touchstart', initializeAudio, { once: true });
+        
+        function initializeAudio() {
+            if (!game) {
+                game = new Game();
+            } else if (game.audioContext && game.audioContext.state === 'suspended') {
+                game.audioContext.resume().catch(e => console.log('Audio resume failed:', e));
+            }
+        }
+        
+        // Start game immediately for desktop users
+        window.addEventListener('load', () => {
+            if (!game) {
+                game = new Game();
+            }
+        });
+    </script>
+</body>
+</html>
